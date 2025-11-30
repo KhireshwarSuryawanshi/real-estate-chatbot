@@ -1,10 +1,14 @@
 import pandas as pd
+import numpy as np
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 # import excel
 df = pd.read_excel("analysis/data/clean.xlsx", engine='openpyxl')
 print("LOCATIONS:", df["final location"].unique()[:50])
+loc = df["final location"].fillna("").astype(str).str.lower()
+city = df["city"].fillna("").astype(str).str.lower()
+
 
 
 @api_view(["POST"])
@@ -14,10 +18,13 @@ def analyze(request):
 
     if not query:
         return Response({"error": "Query require"}, status=400)
+    
+    query_lower = query.lower()
 
     # filter rows where localit contains query
-    filtered = df[df["final location"].str.lower().str.contains(query, na=False)
-                  | df["city"].str.lower().str.lower().str.contains(query, na=False)
+    filtered = df[
+        loc.str.contains(query_lower, na=False) | 
+        city.str.contains(query_lower, na=False)
                   ]
 
     if filtered.empty:
@@ -27,6 +34,7 @@ def analyze(request):
             "table_data": []
         })
 
+    filtered=filtered.replace([np.inf, -np.inf,np.nan,None],0)
     # grp by year
     chart_data = (
         filtered.groupby("year")["flat - weighted average rate"]
